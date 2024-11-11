@@ -13,7 +13,7 @@ conn = duckdb.connect('firstdb.db')
 current_tables = ['advanced', 'fourfactors', 'misc', 'scoring', 'traditional']
 
 # %%
-conn.close()
+# conn.close()
 
 # %%
 ## log data
@@ -52,19 +52,25 @@ for file in lines_csv_files[1:]:
 ## game data
 for tp in ['teams', 'players']:
     for kind in current_tables:
-        csv_files = glob.glob(f'DATA/raw/{tp}/{kind}/*.csv')
+        try:
+            csv_files = glob.glob(f'DATA/raw/{tp}/{kind}/*.csv')
 
-        conn.execute(f"""
-            CREATE OR REPLACE TABLE {tp}_{kind} as
-            SELECT *
-            FROM read_csv_auto('{csv_files[0]}')
-        """).df()
+            conn.execute(f"""
+                CREATE OR REPLACE TABLE {tp}_{kind} as
+                SELECT *
+                FROM read_csv_auto('{csv_files[0]}'
+                )
+            """).df()
+        except Exception as e:
+            print(f"problem with {tp} {kind}\n{e}")
 
 
         for file in csv_files[1:]:
             conn.execute(f"""
                 INSERT INTO {tp}_{kind}
-                SELECT * FROM read_csv_auto('{file}')
+                SELECT *
+                FROM read_csv_auto('{file}'
+                )
                 """)
             
 ### todo: combine tables, processed data, dynamic query for model
@@ -72,11 +78,41 @@ for tp in ['teams', 'players']:
 conn.execute(f"""SHOW TABLES""").fetchall()
 
 # %%
-columns = conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name ilike '%players%'").df()
+conn.execute("SELECT * FROM information_schema.columns WHERE table_name ilike '%teams_advanced%'").df()
+
+# %%
+player_columns = conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name ilike '%players%'").df()
+
+# %%
+print(player_columns)
+
 
 
 # %%
-print(columns)
+colset = set()
+col_dict = dict()
+for tn, cn, in zip(player_columns['table_name'],player_columns['column_name']):
+    if cn in colset:
+        # print('already have col')
+        continue
+    if tn not in col_dict.keys():
+        col_dict[tn] = []
+    colset.add(cn)
+    col_dict[tn].append(cn)
+
+# print(col_dict)
+
+# %%
+for i in col_dict.keys():
+    print(i)
+    print(col_dict[i])
+
+### LATEST: need to map lowercase cols to uppercase cols for traditional, or go through endpoints and update everything to v3
+
+
+
+
+
 
 # %%
 
