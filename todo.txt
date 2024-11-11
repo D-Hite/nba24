@@ -1,5 +1,21 @@
-dylan
-duckdb to combine raw data tables and line info
+=
+make collection as automatic as possible
+combine tables with duckdb
+establish way of getting line data and merging with GID's
+Make processed table with actionable columnn names (extracting season id, home team, combine with log data maybe (next GID or H/A), offseason game info)
+
+develop way to do custom queries to get model data
+    (pick columns, season range, H/A, avgs, l10avgs, haavgs, lines, offseason or normal)
 
 
-zach
+10/17
+remove duplicate columns in duckdb combined tables
+find out why nan values in teams_combined and teams_combined2
+validate player combined with log data
+
+
+
+
+for fb
+
+player stat avgs and aggregated data
