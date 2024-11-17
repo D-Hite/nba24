@@ -82,6 +82,7 @@ conn.execute("SELECT * FROM information_schema.columns WHERE table_name ilike '%
 
 # %%
 player_columns = conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name ilike '%players%'").df()
+log_columns = conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name = 'log_table'").df()
 
 # %%
 print(player_columns)
@@ -100,12 +101,79 @@ for tn, cn, in zip(player_columns['table_name'],player_columns['column_name']):
     colset.add(cn)
     col_dict[tn].append(cn)
 
+for tn, cn, in zip(log_columns['table_name'],log_columns['column_name']):
+    if cn in colset:
+        # print('already have col')
+        continue
+    if tn not in col_dict.keys():
+        col_dict[tn] = []
+    colset.add(cn)
+    col_dict[tn].append(cn)
+
 # print(col_dict)
+
 
 # %%
 for i in col_dict.keys():
     print(i)
     print(col_dict[i])
+
+
+
+# %%
+news = set()
+news.add('log_table')
+print(set(col_dict.keys()) - news)
+spec_col_set = (set(col_dict.keys()) - news)
+
+
+# %%
+col_sql = ""
+for j in col_dict['log_table']:
+    col_sql+=f"log_table.{j}\n,"
+print(col_sql)
+
+# %%
+
+for i in spec_col_set:
+    for j in col_dict[i]:
+        col_sql+=f"{i}.{j}\n,"
+col_sql = col_sql[:-2]
+print(col_sql)
+
+
+
+# %%
+join_sql = "FROM log_table"
+first = True
+last_table = 'log_table'
+for i in spec_col_set:
+    if first:
+        join_sql+=f"\nleft join {i} on {last_table}.GAME_ID = {i}.GAME_ID and {last_table}.TEAM_ABBREVIATION = {i}.TEAM_ABBREVIATION"
+        first = False
+        last_table = i
+    else:
+        join_sql+=f"\nleft join {i} on {last_table}.GAME_ID = {i}.GAME_ID and {last_table}.PLAYER_NAME = {i}.PLAYER_NAME"
+        last_table=i
+
+
+print(join_sql)
+
+
+# %%
+combined_f_string =f"""CREATE OR REPLACE TABLE players_combined as
+    SELECT 
+    {col_sql}
+{join_sql}"""
+
+print(combined_f_string)
+
+
+# %%
+conn.execute(combined_f_string).df()
+
+
+
 
 ### LATEST: need to map lowercase cols to uppercase cols for traditional, or go through endpoints and update everything to v3
 
