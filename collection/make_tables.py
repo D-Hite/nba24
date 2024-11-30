@@ -9,9 +9,19 @@ class TableGenerator():
 
     def __init__(self):
         self.conn = duckdb.connect('firstdb.db')
-        self.CURRENT_TABLES =  ['advanced', 'fourfactors', 'misc', 'scoring', 'traditional']
+        self.CURRENT_TABLES =  self.get_endpoints()
         self.player_combination_sql = ''
         self.team_combination_sql = ''
+
+    def get_endpoints(self):
+        team_table_paths = glob.glob('DATA/raw/teams/*')
+        team_tables = set([x.split('/')[-1] for x in team_table_paths])
+
+        player_table_paths = glob.glob('DATA/raw/players/*')
+        player_tables = set([x.split('/')[-1] for x in player_table_paths])
+
+        return team_tables.intersection(player_tables)
+
 
     def create_log_table(self):
         ## log data
@@ -125,9 +135,12 @@ class TableGenerator():
             col_dict[cn].append(tn)
         
         for cn2 in col_dict.keys():
+            if cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL']:
+                out_dict['log_table'].append(cn2)
+                continue
             if len(col_dict[cn2]) > 1:
                 newlist = set(col_dict[cn2]) - set(['log_table']) # need to prioritizeother tables over log table (for player data)
-                best_table = analyze_columns(cn2, list(newlist))
+                best_table = self.analyze_columns(cn2, list(newlist))
                 out_dict[best_table].append(cn2)
             elif len(col_dict[cn2]) == 0:
                 print('DATA ERROR? in get_column_sources_most_populated')
@@ -140,9 +153,8 @@ class TableGenerator():
 
     def analyze_columns(self, column, table_list):
         # for table in table_list:
-        #     col_df = self.conn.execute(f"""SELECT {column}
-        #                           FROM {table}""").df()
-        #     print(col_df.describe())
+        #     if 'fourfactors' in table:
+        #         return table
         return table_list[0]
 
 
@@ -164,16 +176,17 @@ class TableGenerator():
         col_sql = col_sql[:-2]
         # print(col_sql)
 
+
         join_sql = "FROM log_table"
         first = True
         last_table = 'log_table'
         for i in spec_col_set:
             if first:
-                join_sql+=f"\nleft join {i} on {last_table}.GAME_ID = {i}.GAME_ID and {last_table}.TEAM_ABBREVIATION = {i}.TEAM_ABBREVIATION"
+                join_sql+=f"\nleft join {i} on {last_table}.GAME_ID::int = {i}.GAME_ID::int and {last_table}.TEAM_ABBREVIATION = {i}.TEAM_ABBREVIATION"
                 first = False
                 last_table = i
             else:
-                join_sql+=f"\nleft join {i} on {last_table}.GAME_ID = {i}.GAME_ID and {last_table}.PLAYER_NAME = {i}.PLAYER_NAME"
+                join_sql+=f"\nleft join {i} on {last_table}.GAME_ID::int = {i}.GAME_ID::int and {last_table}.PLAYER_NAME = {i}.PLAYER_NAME"
                 last_table=i
 
         combined_f_string =f"""CREATE OR REPLACE TABLE players_combined as
@@ -211,8 +224,8 @@ class TableGenerator():
         first = True
         last_table = 'log_table'
         for i in spec_col_set:
-            join_sql+=f"\nleft join {i} on {last_table}.GAME_ID = {i}.GAME_ID and {last_table}.TEAM_ABBREVIATION = {i}.TEAM_ABBREVIATION"
-            last_table=i
+            join_sql+=f"\nleft join {i} on {last_table}.GAME_ID::int = {i}.GAME_ID::int and {last_table}.TEAM_ABBREVIATION = {i}.TEAM_ABBREVIATION"
+            # last_table=i
 
         combined_f_string =f"""CREATE OR REPLACE TABLE teams_combined as
             SELECT 
@@ -228,8 +241,8 @@ class TableGenerator():
 
 
     def create_team_and_player_tables(self):
-        playerandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%players%'  or table_name = 'log_table') and table_name != 'players_combined'").df()
-        teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%team%' or table_name = 'log_table') and table_name != 'teams_combined'").df()
+        playerandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%players%'  or table_name in ('log_table')) and table_name != 'players_combined'").df()
+        teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%team%' or table_name in ('log_table', 'lines_table')) and table_name != 'teams_combined'").df()
 
         players_dict = self.get_column_sources_most_populated(playerandlog_columns)
         player_sql = self.sql_create_player_combination(players_dict)
@@ -248,9 +261,35 @@ class TableGenerator():
 # %%
 ### REMAKING ENTIRE DATABASE
 tg = TableGenerator()
-tg.recreate_raw_tables()
+# tg.recreate_raw_tables()
 tg.create_team_and_player_tables()
 
+
+# %%
+print(tg.CURRENT_TABLES)
+
+# %%
+tg.conn.execute('show tables').df()
+
+
+# %%
+### TEAM_SAMPLE
+sample1 = tg.conn.execute('select * from teams_combined order by random() limit 1000').df()
+sample1.to_csv('./temp/sample_teams_combined.csv')
+
+
+
+# %%
+### PLAYER_SAMPLE
+sample2 = tg.conn.execute("""select * from players_combined where GAME_DATE::DATE > '2017-01-01'::DATE order by random() limit 1000""").df()
+sample2.to_csv('./temp/sample_players_combined.csv')
+
+
+# %%
+### GAME_SAMPLE
+sample3 = tg.conn.execute("""select * from players_combined where GAME_ID::int = 22000836""").df()
+sample3.to_csv('./temp/one_game_players_combined.csv')
+##22000836
 
 # %%
 tg.conn.close()
