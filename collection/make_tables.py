@@ -293,3 +293,5 @@ sample3.to_csv('./temp/one_game_players_combined.csv')
 
 # %%
 tg.conn.close()
+
+# %%
