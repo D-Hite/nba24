@@ -135,7 +135,7 @@ class TableGenerator():
             col_dict[cn].append(tn)
         
         for cn2 in col_dict.keys():
-            if cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL']:
+            if cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL','PLUS_MINUS']:
                 out_dict['log_table'].append(cn2)
                 continue
             if len(col_dict[cn2]) > 1:
