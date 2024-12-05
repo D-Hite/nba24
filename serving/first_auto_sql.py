@@ -195,7 +195,7 @@ ORDER BY
 
 
 # %%
-
+# test
 conn.execute("""
 select *
              from TEMP_TEAM_10_AVG_DATA
