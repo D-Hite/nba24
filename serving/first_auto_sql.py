@@ -98,6 +98,81 @@ first_sample.to_csv('out/first_sample.csv')
 
 
 
+# %%
+def create_step_2_dataset(cols,roll_number):
+    start = f"""
+    CREATE OR REPLACE TABLE TEAM_AVG_{roll_number}_TABLE AS
+    
+    WITH HA_MATCHUPS AS (
+        SELECT
+            GAME_ID,
+            GAME_DATE,
+            TEAM_ABBREVIATION,
+            MATCHUP,
+            CASE 
+                WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 0, 4)
+                ELSE SUBSTRING(MATCHUP, 7)
+            END AS HOME_TEAM,
+            
+            CASE 
+                WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 8, 4)
+                ELSE SUBSTRING(MATCHUP, 0, 4)
+            END AS AWAY_TEAM
+        FROM TEMP_TEAM_{roll_number}_AVG_DATA
+    )
+
+    SELECT 
+        current_game.GAME_ID
+        ,current_game.GAME_DATE
+        ,current_game.MATCHUP"""
+    
+    for col in cols:
+          start+=f"\n\t,home_team_data.{col} AS HOME_{col}"
+
+    start+="\n\t,home_team_data.GAME_COUNT as HOME_GAME_COUNT"
+    
+    for col2 in cols:
+          start+=f"\n\t,away_team_data.{col2} AS AWAY_{col2}"
+    
+    start+="\n\t,away_team_data.GAME_COUNT as AWAY_GAME_COUNT"
+        
+    start+=f"""\nFROM HA_MATCHUPS current_game
+
+    -- Join to get home team data for the next game
+    JOIN TEMP_TEAM_{roll_number}_AVG_DATA home_team_data
+        ON home_team_data.TEAM_ABBREVIATION = current_game.HOME_TEAM
+        AND current_game.GAME_ID = home_team_data.NEXT_GAME_ID
+
+    -- Join to get away team data for the next game
+    JOIN TEMP_TEAM_{roll_number}_AVG_DATA away_team_data
+        ON away_team_data.TEAM_ABBREVIATION = current_game.AWAY_TEAM
+        AND current_game.GAME_ID = away_team_data.NEXT_GAME_ID
+
+    ORDER BY 
+        current_game.GAME_DATE
+    ;"""
+    
+    return start
+
+
+
+# %%
+print(create_step_2_dataset(columns_wanted,rolling_avg_number))
+
+
+# %%
+conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
+
+# %%
+
+# %%
+sample = conn.execute(f"""
+SELECT * FROM TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
+             """).df()
+
+sample.to_csv('out/second_sample.csv')
+
+
 
 
 # %%
@@ -195,7 +270,9 @@ ORDER BY
 
 
 # %%
-# test 2
+# test 300
+
+
 conn.execute("""
 select *
              from TEMP_TEAM_10_AVG_DATA
