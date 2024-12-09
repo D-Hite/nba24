@@ -135,6 +135,8 @@ def create_step_2_dataset(cols,roll_number):
           start+=f"\n\t,away_team_data.{col2} AS AWAY_{col2}"
     
     start+="\n\t,away_team_data.GAME_COUNT as AWAY_GAME_COUNT"
+
+    start+="\n\t,current_game.PLUS_MINUS as PLUS_MINUS"
         
     start+=f"""\nFROM HA_MATCHUPS current_game
 
@@ -171,6 +173,58 @@ SELECT * FROM TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
              """).df()
 
 sample.to_csv('out/second_sample.csv')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
