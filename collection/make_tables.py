@@ -116,7 +116,7 @@ class TableGenerator():
 
     def recreate_raw_tables(self):
         self.create_log_table()
-        self.create_line_table()
+        # self.create_line_table()
         self.create_stat_tables()
         print('recreate_raw_tables: DONE')
 
@@ -190,7 +190,7 @@ class TableGenerator():
                 last_table=i
 
         combined_f_string =f"""CREATE OR REPLACE TABLE players_combined as
-            SELECT 
+            SELECT DISTINCT
             {col_sql}
         {join_sql}"""
 
@@ -228,7 +228,7 @@ class TableGenerator():
             # last_table=i
 
         combined_f_string =f"""CREATE OR REPLACE TABLE teams_combined as
-            SELECT 
+            SELECT DISTINCT
             {col_sql}
         {join_sql}"""
 
@@ -242,7 +242,7 @@ class TableGenerator():
 
     def create_team_and_player_tables(self):
         playerandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%players%'  or table_name in ('log_table')) and table_name != 'players_combined'").df()
-        teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%team%' or table_name in ('log_table', 'lines_table')) and table_name != 'teams_combined'").df()
+        teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%teams%' or table_name in ('log_table', 'lines_table')) and table_name != 'teams_combined'").df()
 
         players_dict = self.get_column_sources_most_populated(playerandlog_columns)
         player_sql = self.sql_create_player_combination(players_dict)
@@ -261,8 +261,8 @@ class TableGenerator():
 # %%
 ### REMAKING ENTIRE DATABASE
 tg = TableGenerator()
-tg.recreate_raw_tables()
-tg.create_team_and_player_tables()
+# tg.recreate_raw_tables()
+# tg.create_team_and_player_tables()
 
 
 # %%
@@ -270,6 +270,15 @@ print(tg.CURRENT_TABLES)
 
 # %%
 tg.conn.execute('show tables').df()
+
+# %%
+tg.conn.execute("""SELECT *
+             from teams_combined where GAME_ID::int = 42100406""").df()
+
+# %%
+tg.conn.execute("""SELECT *
+             from lines_table where GAME_ID::int = 42100406""").df()
+
 
 
 # %%
