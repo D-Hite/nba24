@@ -57,7 +57,9 @@ def create_base_team_dataset(cols, roll_number):
         ,SEASON_ID
         ,GAME_ID
         ,GAME_DATE
-        ,MATCHUP"""
+        ,MATCHUP
+        ,PLUS_MINUS
+        ,PTS"""
     for i in cols:
         start+=f"\n\t,{i}"
     for j in cols:
@@ -71,15 +73,10 @@ def create_base_team_dataset(cols, roll_number):
         ORDER BY GAME_DATE
         ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
     ) AS game_count
-
-    -- Get the NEXT_GAME_ID using the LEAD() function
-    ,LEAD(GAME_ID) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-    ) AS NEXT_GAME_ID
+    
 
 FROM TEAMS_COMBINED
-WHERE SEASON_ID::varchar not like '4%'
+--WHERE SEASON_ID::varchar not like '4%'
 ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
     return start
 
@@ -91,6 +88,9 @@ print(create_base_team_dataset(columns_wanted, rolling_avg_number))
 # %%
 conn.execute(create_base_team_dataset(columns_wanted, rolling_avg_number)).df()
 
+
+with open('creation.sql' ,'w') as f:
+     f.write(create_base_team_dataset(columns_wanted, rolling_avg_number))
 
 # %%
 first_sample = conn.execute("select * from TEMP_TEAM_10_AVG_DATA order by RANDOM() limit 1000").df()
@@ -122,7 +122,7 @@ def create_step_2_dataset(cols,roll_number):
     )
 
     SELECT 
-        current_game.GAME_ID
+        current_game.GAME_ID::int as GAME_ID
         ,current_game.GAME_DATE
         ,current_game.MATCHUP"""
     
@@ -136,19 +136,28 @@ def create_step_2_dataset(cols,roll_number):
     
     start+="\n\t,away_team_data.GAME_COUNT as AWAY_GAME_COUNT"
 
-    start+="\n\t,current_game.PLUS_MINUS as PLUS_MINUS"
+    start+="\n\t,home_team_data.PLUS_MINUS as PLUS_MINUS"
+
+    start+="\n\t,home_team_data.PTS + away_team_data.PTS as TOTAL_POINTS"
+
+    start+=f"\n\t,lt.line as HOME_SPREAD\n\t,lt.OU as OVER_UNDER"
         
     start+=f"""\nFROM HA_MATCHUPS current_game
 
     -- Join to get home team data for the next game
     JOIN TEMP_TEAM_{roll_number}_AVG_DATA home_team_data
         ON home_team_data.TEAM_ABBREVIATION = current_game.HOME_TEAM
-        AND current_game.GAME_ID = home_team_data.NEXT_GAME_ID
+        AND current_game.GAME_ID = home_team_data.GAME_ID
 
     -- Join to get away team data for the next game
     JOIN TEMP_TEAM_{roll_number}_AVG_DATA away_team_data
         ON away_team_data.TEAM_ABBREVIATION = current_game.AWAY_TEAM
-        AND current_game.GAME_ID = away_team_data.NEXT_GAME_ID
+        AND current_game.GAME_ID = away_team_data.GAME_ID
+    
+    JOIN LINES_TABLE lt
+        on current_game.HOME_TEAM = lt.TEAM_ABBREVIATION
+        and current_game.GAME_ID::int = lt.GAME_ID::int
+
 
     ORDER BY 
         current_game.GAME_DATE
@@ -165,6 +174,9 @@ print(create_step_2_dataset(columns_wanted,rolling_avg_number))
 # %%
 conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
 
+with open('creation.sql' ,'a') as f:
+     f.write("\n\n"+create_step_2_dataset(columns_wanted,rolling_avg_number))
+
 # %%
 
 # %%
@@ -177,6 +189,8 @@ sample.to_csv('out/second_sample.csv')
 
 
 
+# %%
+conn.close()
 
 
 

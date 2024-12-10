@@ -228,7 +228,8 @@ conn.execute("""select * from lines_table
 
 
 
-
+# %%
+conn.close()
 
 
 
