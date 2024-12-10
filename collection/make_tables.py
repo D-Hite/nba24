@@ -261,7 +261,7 @@ class TableGenerator():
 # %%
 ### REMAKING ENTIRE DATABASE
 tg = TableGenerator()
-# tg.recreate_raw_tables()
+tg.recreate_raw_tables()
 tg.create_team_and_player_tables()
 
 
