@@ -8,8 +8,6 @@ from os import path
 
 
 # %%
-# conn = duckdb.connect('../collection/firstdb.db')
-# %%
 basepath = path.dirname(__file__)
 filepath = path.abspath(path.join(basepath, "..", "collection", "firstdb.db"))
 
@@ -66,12 +64,12 @@ def create_base_team_dataset(cols, roll_number):
         start+=f"""\n\t,AVG({j}) OVER (
         PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
         ORDER BY GAME_DATE
-        ROWS BETWEEN {roll_number} PRECEDING AND CURRENT ROW
+        ROWS BETWEEN {roll_number} PRECEDING AND 1 PRECEDING
     ) AS rolling_{roll_number}_avg_{j}"""
     start+=f""",COUNT(*) OVER (
         PARTITION BY TEAM_ABBREVIATION, SEASON_ID
         ORDER BY GAME_DATE
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
     ) AS game_count
     
 
@@ -81,7 +79,7 @@ ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
     return start
 
 # %%
-print(create_base_team_dataset(columns_wanted, rolling_avg_number))
+# print(create_base_team_dataset(columns_wanted, rolling_avg_number))
 
 
 
@@ -94,7 +92,7 @@ with open('creation.sql' ,'w') as f:
 
 # %%
 first_sample = conn.execute("select * from TEMP_TEAM_10_AVG_DATA order by RANDOM() limit 1000").df()
-first_sample.to_csv('out/first_sample.csv')
+first_sample.to_csv('temp/first_sample.csv')
 
 
 
@@ -168,10 +166,6 @@ def create_step_2_dataset(cols,roll_number):
 
 
 # %%
-print(create_step_2_dataset(columns_wanted,rolling_avg_number))
-
-
-# %%
 conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
 
 with open('creation.sql' ,'a') as f:
@@ -184,7 +178,7 @@ sample = conn.execute(f"""
 SELECT * FROM TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
              """).df()
 
-sample.to_csv('out/second_sample.csv')
+sample.to_csv('temp/second_sample.csv')
 
 
 
