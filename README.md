@@ -1,2 +1,3 @@
 # nba24
- new nba data
+
+data collection, aggregation, extraction and analysis for nba data

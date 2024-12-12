@@ -116,13 +116,14 @@ class TableGenerator():
 
     def recreate_raw_tables(self):
         self.create_log_table()
-        # self.create_line_table()
+        self.create_line_table()
         self.create_stat_tables()
         print('recreate_raw_tables: DONE')
 
-    def get_column_sources_most_populated(self,cols):
+    def get_column_sources_most_populated(self,cols,player_data):
         """
         cols:pandas.DataFrame, EX:self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name ilike '%players%' or table_name = 'log_table'").df()
+        player_data: True if player data
         """
         col_dict = dict()
         out_dict = dict()
@@ -135,7 +136,11 @@ class TableGenerator():
             col_dict[cn].append(tn)
         
         for cn2 in col_dict.keys():
-            if cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL','PLUS_MINUS']:
+            if not player_data:## TEAM_DATA, prioritize log data
+                if 'log_table' in col_dict[cn2]:
+                    out_dict['log_table'].append(cn2)
+                    continue
+            elif cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL','PLUS_MINUS']:## PLAYER DATA LOG DATA
                 out_dict['log_table'].append(cn2)
                 continue
             if len(col_dict[cn2]) > 1:
@@ -244,10 +249,10 @@ class TableGenerator():
         playerandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%players%'  or table_name in ('log_table')) and table_name != 'players_combined'").df()
         teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%teams%' or table_name in ('log_table', 'lines_table')) and table_name != 'teams_combined'").df()
 
-        players_dict = self.get_column_sources_most_populated(playerandlog_columns)
+        players_dict = self.get_column_sources_most_populated(playerandlog_columns, True)
         player_sql = self.sql_create_player_combination(players_dict)
 
-        team_dict = self.get_column_sources_most_populated(teamandlog_columns)
+        team_dict = self.get_column_sources_most_populated(teamandlog_columns,False)
         team_sql = self.sql_create_team_combination(team_dict)
 
         with open('temp/creationsql.sql','w') as f1:
@@ -261,10 +266,25 @@ class TableGenerator():
 # %%
 ### REMAKING ENTIRE DATABASE
 tg = TableGenerator()
-# tg.recreate_raw_tables()
-# tg.create_team_and_player_tables()
+tg.recreate_raw_tables()
+tg.create_team_and_player_tables()
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+# %%
+x = tg.conn.execute("select * from TEAMS_COMBINED WHERE GAME_ID = 21600597").df()
+x.to_csv('sample.csv')
 # %%
 print(tg.CURRENT_TABLES)
 
