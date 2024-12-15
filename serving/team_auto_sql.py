@@ -125,12 +125,12 @@ def create_step_2_dataset(cols,roll_number):
         ,current_game.MATCHUP"""
     
     for col in cols:
-          start+=f"\n\t,home_team_data.rolling_{roll_number}_avg_{j} AS HOME_{col}"
+          start+=f"\n\t,home_team_data.rolling_{roll_number}_avg_{col} AS HOME_{col}"
 
     start+="\n\t,home_team_data.GAME_COUNT as HOME_GAME_COUNT"
     
     for col2 in cols:
-          start+=f"\n\t,away_team_data.rolling_{roll_number}_avg_{j} AS AWAY_{col2}"
+          start+=f"\n\t,away_team_data.rolling_{roll_number}_avg_{col} AS AWAY_{col2}"
     
     start+="\n\t,away_team_data.GAME_COUNT as AWAY_GAME_COUNT"
 

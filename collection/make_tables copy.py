@@ -120,7 +120,7 @@ class TableGenerator():
         self.create_stat_tables()
         print('recreate_raw_tables: DONE')
 
-    def get_column_sources_most_populated(self,cols,player_data):
+    def get_column_sources(self,cols):
         """
         used to select which columns come from what source
 
@@ -128,61 +128,48 @@ class TableGenerator():
         player_data: True if player data
         """
         col_dict = dict()
-        out_dict = dict()
         ## FIRST GET ALL COLUMNS IN DICTIONARY
         for tn, cn, in zip(cols['table_name'],cols['column_name']):
-            if tn not in out_dict.keys():
-                out_dict[tn] = []
             if cn not in col_dict.keys():
                 col_dict[cn] = []
             col_dict[cn].append(tn)
-        
-        for cn2 in col_dict.keys():
-            if not player_data:## TEAM_DATA, prioritize log data
-                if 'log_table' in col_dict[cn2]:
-                    out_dict['log_table'].append(cn2)
-                    continue
-            elif cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL']:## PLAYER DATA LOG DATA
-                out_dict['log_table'].append(cn2)
-                continue
-            if len(col_dict[cn2]) > 1:
-                newlist = set(col_dict[cn2]) - set(['log_table']) # need to prioritizeother tables over log table (for player data)
-                best_table = self.analyze_columns(cn2, list(newlist))
-                out_dict[best_table].append(cn2)
-            elif len(col_dict[cn2]) == 0:
-                print('DATA ERROR? in get_column_sources_most_populated')
-            else:
-                out_dict[col_dict[cn2][0]].append(cn2)
-        
-        return out_dict
 
-
-
-    def analyze_columns(self, column, table_list):
-        for table in table_list:
-            if 'fourfactors' in table.lower():
-                return table
-        return table_list[0]
-
+        return col_dict
 
     def sql_create_player_combination(self,col_dict):
+        """
+        reads through col_dict generated from get_column_sources to make the players_combined 
+        updated to coalesce values when there are multiple tables with the column
+        
+        """
 
-        news = set()
-        news.add('log_table')
-        # print(set(col_dict.keys()) - news)
-        spec_col_set = (set(col_dict.keys()) - news)
+        order_map = {'log_table':0,'players_fourfactors':1}
+
+        spec_col_set = set()
+        for value_list in col_dict.values():
+            spec_col_set.update(value_list)
+        spec_col_set.discard('log_table')
 
         col_sql = ""
-        for j in col_dict['log_table']:
-            col_sql+=f"log_table.{j}\n,"
-        # print(col_sql)
-
-        for i in spec_col_set:
-            for j in col_dict[i]:
-                col_sql+=f"{i}.{j}\n,"
-        col_sql = col_sql[:-2]
-        # print(col_sql)
-
+        for col_name in col_dict.keys():
+            if col_name == 'TOV':### THIS IS ONLY IN LOG TABLE and doesnt apply to player data
+                continue
+            # og_tables = col_dict[col_name]
+            col_dict[col_name] = sorted(col_dict[col_name], key=lambda x: order_map.get(x, float('inf')))
+            if col_name in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL']:## PLAYER DATA LOG DATA
+                col_dict[col_name] = ['log_table']
+            elif 'log_table' in col_dict[col_name]:
+                col_dict[col_name] = col_dict[col_name][1:]
+            if len(col_dict[col_name]) == 1:
+                # print(f"COLUMN:{col_name}, TABLES: {og_tables}, statement: {col_dict[col_name][0]}.{col_name},")
+                col_sql+=f"\n\t{col_dict[col_name][0]}.{col_name},"
+            else:
+                coalesce_statement = ""
+                for table_name in col_dict[col_name]:
+                    coalesce_statement+=f"{table_name}.{col_name},"
+                coalesce_statement = coalesce_statement[:-1]
+                # print(f"COLUMN:{col_name}, TABLES: {og_tables}, statement: COALESCE({coalesce_statement}) as {col_name},")
+                col_sql+=f"\n\tCOALESCE({coalesce_statement}) as {col_name},"
 
         join_sql = "FROM log_table"
         first = True
@@ -201,31 +188,36 @@ class TableGenerator():
             {col_sql}
         {join_sql}"""
 
-        self.conn.execute(combined_f_string).df()
-
-        self.sql_create_player_combination = combined_f_string
-
-        return 'players_combined table made'
+        return combined_f_string
 
 
 
     def sql_create_team_combination(self,col_dict):
 
-        news = set()
-        news.add('log_table')
-        # print(set(col_dict.keys()) - news)
-        spec_col_set = (set(col_dict.keys()) - news)
+        order_map = {'log_table':0,'players_fourfactors':1}
+
+        spec_col_set = set()
+        for value_list in col_dict.values():
+            spec_col_set.update(value_list)
+        spec_col_set.discard('log_table')
 
         col_sql = ""
-        for j in col_dict['log_table']:
-            col_sql+=f"log_table.{j}\n,"
-        # print(col_sql)
-
-        for i in spec_col_set:
-            for j in col_dict[i]:
-                col_sql+=f"{i}.{j}\n,"
-        col_sql = col_sql[:-2]
-        # print(col_sql)
+        for col_name in col_dict.keys():
+            col_dict[col_name] = sorted(col_dict[col_name], key=lambda x: order_map.get(x, float('inf')))
+            if len(col_dict[col_name]) == 1:
+                # print(f"COLUMN:{col_name}, TABLES: {og_tables}, statement: {col_dict[col_name][0]}.{col_name},")
+                col_sql+=f"\n\t{col_dict[col_name][0]}.{col_name},"
+            else:
+                coalesce_statement = ""
+                if col_name in ['GAME_ID','MIN']:### COLUMNS WITH DIFFERENT TYPES: TODO: MAKE THIS AUTOMATIC?
+                    for table_name in col_dict[col_name]:
+                        coalesce_statement+=f"CAST({table_name}.{col_name} AS VARCHAR),"
+                else:
+                    for table_name in col_dict[col_name]:
+                        coalesce_statement+=f"{table_name}.{col_name},"
+                coalesce_statement = coalesce_statement[:-1]
+                # print(f"COLUMN:{col_name}, TABLES: {og_tables}, statement: COALESCE({coalesce_statement}) as {col_name},")
+                col_sql+=f"\n\tCOALESCE({coalesce_statement}) as {col_name},"
 
         join_sql = "FROM log_table"
         first = True
@@ -239,23 +231,22 @@ class TableGenerator():
             {col_sql}
         {join_sql}"""
 
-        self.conn.execute(combined_f_string).df()
-        
-
-        self.sql_create_team_combination = combined_f_string
-
-        return 'teams_combined table made'
+        return combined_f_string
 
 
     def create_team_and_player_tables(self):
         playerandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%players%'  or table_name in ('log_table')) and table_name != 'players_combined'").df()
         teamandlog_columns = self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE (table_name ilike '%teams%' or table_name in ('log_table', 'lines_table')) and table_name != 'teams_combined'").df()
 
-        players_dict = self.get_column_sources_most_populated(playerandlog_columns, True)
+        players_dict = self.get_column_sources(playerandlog_columns)
         player_sql = self.sql_create_player_combination(players_dict)
+        self.conn.execute(player_sql).df()
+        self.sql_create_player_combination = player_sql
 
-        team_dict = self.get_column_sources_most_populated(teamandlog_columns,False)
+        team_dict = self.get_column_sources(teamandlog_columns)
         team_sql = self.sql_create_team_combination(team_dict)
+        self.conn.execute(team_sql).df()
+        self.sql_create_team_combination = team_sql
 
         with open('creationsql.sql','w') as f1:
             f1.write(f"TEAMS:\n{self.sql_create_team_combination}\n\n")
@@ -268,12 +259,66 @@ class TableGenerator():
 # %%
 ### REMAKING ENTIRE DATABASE
 tg = TableGenerator()
-tg.recreate_raw_tables()
+# tg.recreate_raw_tables()
 tg.create_team_and_player_tables()
 
 
+# %%
+# conn = duckdb.connect('firstdb.db')
+x = teamandlog_columns = conn.execute("""
+with overalpping_cols as 
+                                      (
+SELECT column_name
+FROM information_schema.columns
+WHERE (table_name ILIKE '%teams%' OR table_name IN ('log_table', 'lines_table'))
+  AND table_name != 'teams_combined'
+GROUP BY column_name
+HAVING COUNT(DISTINCT table_name) > 1
+)
+    SELECT table_name,
+column_name,
+data_type
+FROM information_schema.columns
+WHERE (table_name ILIKE '%teams%' OR table_name IN ('log_table', 'lines_table'))
+  AND table_name != 'teams_combined'
+                                      AND column_name in (select * from overalpping_cols)                      
+                                      order by column_name
+                                      ;
+""").df()
+x.to_csv('temp/column_teamssample.csv')
 
 
+# %%
+
+x = teamandlog_columns = conn.execute("""
+WITH overlapping_cols AS (
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE (table_name ILIKE '%teams%' OR table_name IN ('log_table', 'lines_table'))
+      AND table_name != 'teams_combined'
+    GROUP BY column_name
+    HAVING COUNT(DISTINCT table_name) > 1
+),
+columns_with_diff_types AS (
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE (table_name ILIKE '%teams%' OR table_name IN ('log_table', 'lines_table'))
+      AND table_name != 'teams_combined'
+    AND column_name IN (SELECT column_name FROM overlapping_cols)
+    GROUP BY column_name
+    HAVING COUNT(DISTINCT data_type) > 1
+)
+SELECT table_name,
+       column_name,
+       data_type
+FROM information_schema.columns
+WHERE (table_name ILIKE '%teams%' OR table_name IN ('log_table', 'lines_table'))
+  AND table_name != 'teams_combined'
+  AND column_name IN (SELECT column_name FROM columns_with_diff_types)
+ORDER BY column_name, table_name;
+
+""").df()
+x.to_csv('temp/column_teamssample2.csv')
 
 # %%
 x = tg.conn.execute("select * from TEAMS_COMBINED WHERE GAME_ID = 21600597").df()
@@ -316,4 +361,6 @@ sample3.to_csv('./temp/one_game_players_combined.csv')
 # %%
 tg.conn.close()
 
+# %%
+conn.close()
 # %%
