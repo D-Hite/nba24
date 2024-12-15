@@ -102,7 +102,7 @@ conn.execute(create_player_dataset(columns_wanted, rolling_avg_number)).df()
 
 
 with open('player_creation.sql' ,'w') as f:
-     f.write(create_base_player_dataset(columns_wanted, rolling_avg_number))
+     f.write(create_player_dataset(columns_wanted, rolling_avg_number))
 
 # %%
 first_sample = conn.execute("select * from PLAYER_10_AVG_TABLE order by RANDOM() limit 1000").df()
@@ -215,7 +215,7 @@ print(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_
 conn.execute(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number)).df()
 
 
-with open('player_creation.sql' ,'w') as f:
+with open('player_creation.sql' ,'a') as f:
      f.write(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number))
 
 # %%
