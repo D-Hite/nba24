@@ -1,5 +1,6 @@
 venv/*
 collection/temp/*
+serving/temp/*
 collection/FANTASY/z_scores.csv
 collection/FANTASY/total_z_scores.csv
 collection/FANTASY/player_data_fb.csv
