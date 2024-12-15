@@ -129,8 +129,9 @@ for file in lines_csv_files:
              """).df()
     new_data.to_csv(f"Data/lines/LinesV1{file[-11:-4]}.csv",index=False)
     print(f"WROTE FILE: Data/lines/LinesV1{file[-11:-4]}.csv")
-    conn.execute("drop table raw_line_table")
+    conn.execute("drop table if exists raw_line_table")
 
 
 # %%
 conn.close()
+# %%

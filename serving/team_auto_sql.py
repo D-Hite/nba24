@@ -87,7 +87,7 @@ ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
 conn.execute(create_base_team_dataset(columns_wanted, rolling_avg_number)).df()
 
 
-with open('creation.sql' ,'w') as f:
+with open('team_creation.sql' ,'w') as f:
      f.write(create_base_team_dataset(columns_wanted, rolling_avg_number))
 
 # %%
@@ -125,12 +125,12 @@ def create_step_2_dataset(cols,roll_number):
         ,current_game.MATCHUP"""
     
     for col in cols:
-          start+=f"\n\t,home_team_data.{col} AS HOME_{col}"
+          start+=f"\n\t,home_team_data.rolling_{roll_number}_avg_{j} AS HOME_{col}"
 
     start+="\n\t,home_team_data.GAME_COUNT as HOME_GAME_COUNT"
     
     for col2 in cols:
-          start+=f"\n\t,away_team_data.{col2} AS AWAY_{col2}"
+          start+=f"\n\t,away_team_data.rolling_{roll_number}_avg_{j} AS AWAY_{col2}"
     
     start+="\n\t,away_team_data.GAME_COUNT as AWAY_GAME_COUNT"
 
@@ -168,7 +168,7 @@ def create_step_2_dataset(cols,roll_number):
 # %%
 conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
 
-with open('creation.sql' ,'a') as f:
+with open('team_creation.sql' ,'a') as f:
      f.write("\n\n"+create_step_2_dataset(columns_wanted,rolling_avg_number))
 
 # %%

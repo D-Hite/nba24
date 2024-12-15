@@ -122,6 +122,8 @@ class TableGenerator():
 
     def get_column_sources_most_populated(self,cols,player_data):
         """
+        used to select which columns come from what source
+
         cols:pandas.DataFrame, EX:self.conn.execute("SELECT table_name, column_name FROM information_schema.columns WHERE table_name ilike '%players%' or table_name = 'log_table'").df()
         player_data: True if player data
         """
@@ -140,7 +142,7 @@ class TableGenerator():
                 if 'log_table' in col_dict[cn2]:
                     out_dict['log_table'].append(cn2)
                     continue
-            elif cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL','PLUS_MINUS']:## PLAYER DATA LOG DATA
+            elif cn2 in ['SEASON_ID','TEAM_ID','TEAM_ABBREVIATION','TEAM_NAME','GAME_ID','GAME_DATE','MATCHUP','WL']:## PLAYER DATA LOG DATA
                 out_dict['log_table'].append(cn2)
                 continue
             if len(col_dict[cn2]) > 1:
@@ -157,9 +159,9 @@ class TableGenerator():
 
 
     def analyze_columns(self, column, table_list):
-        # for table in table_list:
-        #     if 'fourfactors' in table:
-        #         return table
+        for table in table_list:
+            if 'fourfactors' in table.lower():
+                return table
         return table_list[0]
 
 
@@ -255,7 +257,7 @@ class TableGenerator():
         team_dict = self.get_column_sources_most_populated(teamandlog_columns,False)
         team_sql = self.sql_create_team_combination(team_dict)
 
-        with open('temp/creationsql.sql','w') as f1:
+        with open('creationsql.sql','w') as f1:
             f1.write(f"TEAMS:\n{self.sql_create_team_combination}\n\n")
             f1.write(f"PLAYERS:\n{self.sql_create_player_combination}\n\n")
         print("create_team_and_player_tables: DONE")
@@ -284,7 +286,7 @@ tg.create_team_and_player_tables()
 
 # %%
 x = tg.conn.execute("select * from TEAMS_COMBINED WHERE GAME_ID = 21600597").df()
-x.to_csv('sample.csv')
+x.to_csv('temp/sample.csv')
 # %%
 print(tg.CURRENT_TABLES)
 
