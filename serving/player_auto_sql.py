@@ -103,16 +103,13 @@ print(create_player_dataset(columns_wanted, rolling_avg_number))
 conn.execute(create_player_dataset(columns_wanted, rolling_avg_number)).df()
 
 
-with open('creation_player.sql' ,'w') as f:
+with open('./out/sql/creation_player.sql' ,'w') as f:
      f.write(create_player_dataset(columns_wanted, rolling_avg_number))
 
 # %%
 first_sample = conn.execute("select * from processed.PLAYER_10_AVG_TABLE order by RANDOM() limit 1000").df()
-first_sample.to_csv('temp/player_l10_avg_sample.csv')
+first_sample.to_csv('./out/data/player_l10_avg_sample.csv')
 
-# %%
-# second_sample = conn.execute("select * from processed.PLAYER_10_AVG_TABLE WHERE PLAYER_NAME = 'AJ Price'").df()
-# second_sample.to_csv('temp/second_player_sample.csv')
 
 # # %%
 # out_sample = conn.execute("select * from PLAYER_10_AVG_TABLE").df()
@@ -222,12 +219,12 @@ print(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_
 conn.execute(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number)).df()
 
 
-with open('creation_player.sql' ,'a') as f:
+with open('./out/sql/creation_player.sql' ,'a') as f:
      f.write('\n\n'+create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number))
 
 # %%
 first_sample = conn.execute("select * from processed.PLAYER_10_PER_MIN_AVG_DATA order by RANDOM() limit 1000").df()
-first_sample.to_csv('temp/playerpermin_sample.csv')
+first_sample.to_csv('./out/data/playerpermin_sample.csv')
 
 
 
@@ -245,7 +242,7 @@ conn.execute("""select
              
              """).df()
 
-# x.to_csv('temp/player_sample.csv')
+# x.to_csv('out/data/player_sample.csv')
 
 
 

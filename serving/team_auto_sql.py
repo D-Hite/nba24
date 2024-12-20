@@ -88,7 +88,7 @@ ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
 conn.execute(create_base_team_dataset(columns_wanted, rolling_avg_number)).df()
 
 
-with open('creation_team.sql' ,'w') as f:
+with open('./out/sql/creation_team.sql' ,'w') as f:
      f.write(create_base_team_dataset(columns_wanted, rolling_avg_number))
 
 # %%
@@ -169,7 +169,7 @@ def create_step_2_dataset(cols,roll_number):
 # %%
 conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
 
-with open('creation_team.sql' ,'a') as f:
+with open('./out/sql/creation_team.sql' ,'a') as f:
      f.write("\n\n"+create_step_2_dataset(columns_wanted,rolling_avg_number))
 
 # %%
@@ -179,7 +179,7 @@ sample = conn.execute(f"""
 SELECT * FROM processed.TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
              """).df()
 
-sample.to_csv('temp/team_average_sample.csv')
+sample.to_csv('out/data/team_average_sample.csv')
 
 
 # %%
@@ -197,3 +197,5 @@ conn.close()
 
 
 
+
+# %%

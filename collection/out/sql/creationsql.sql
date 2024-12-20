@@ -88,12 +88,12 @@ CREATE OR REPLACE TABLE combined.teams_combined as
 	raw.teams_scoring.PCT_UAST_FGM,
 	raw.teams_traditional.TO,
         FROM raw.log_table
-left join raw.teams_fourfactors on raw.log_table.GAME_ID::int = raw.teams_fourfactors.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_fourfactors.TEAM_ABBREVIATION
+left join raw.teams_misc on raw.log_table.GAME_ID::int = raw.teams_misc.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_misc.TEAM_ABBREVIATION
 left join raw.lines_table on raw.log_table.GAME_ID::int = raw.lines_table.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.lines_table.TEAM_ABBREVIATION
-left join raw.teams_advanced on raw.log_table.GAME_ID::int = raw.teams_advanced.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_advanced.TEAM_ABBREVIATION
+left join raw.teams_fourfactors on raw.log_table.GAME_ID::int = raw.teams_fourfactors.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_fourfactors.TEAM_ABBREVIATION
 left join raw.teams_scoring on raw.log_table.GAME_ID::int = raw.teams_scoring.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_scoring.TEAM_ABBREVIATION
 left join raw.teams_traditional on raw.log_table.GAME_ID::int = raw.teams_traditional.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_traditional.TEAM_ABBREVIATION
-left join raw.teams_misc on raw.log_table.GAME_ID::int = raw.teams_misc.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_misc.TEAM_ABBREVIATION
+left join raw.teams_advanced on raw.log_table.GAME_ID::int = raw.teams_advanced.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.teams_advanced.TEAM_ABBREVIATION
 
 PLAYERS:
 CREATE OR REPLACE TABLE combined.players_combined as
@@ -186,9 +186,9 @@ CREATE OR REPLACE TABLE combined.players_combined as
 	raw.players_scoring.PCT_UAST_FGM,
 	raw.players_traditional.TO,
         FROM raw.log_table
-left join raw.players_scoring on raw.log_table.GAME_ID::int = raw.players_scoring.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.players_scoring.TEAM_ABBREVIATION
-left join raw.players_advanced on raw.players_scoring.GAME_ID::int = raw.players_advanced.GAME_ID::int and raw.players_scoring.PLAYER_NAME = raw.players_advanced.PLAYER_NAME
-left join raw.players_misc on raw.players_advanced.GAME_ID::int = raw.players_misc.GAME_ID::int and raw.players_advanced.PLAYER_NAME = raw.players_misc.PLAYER_NAME
-left join raw.players_traditional on raw.players_misc.GAME_ID::int = raw.players_traditional.GAME_ID::int and raw.players_misc.PLAYER_NAME = raw.players_traditional.PLAYER_NAME
+left join raw.players_misc on raw.log_table.GAME_ID::int = raw.players_misc.GAME_ID::int and raw.log_table.TEAM_ABBREVIATION = raw.players_misc.TEAM_ABBREVIATION
+left join raw.players_advanced on raw.players_misc.GAME_ID::int = raw.players_advanced.GAME_ID::int and raw.players_misc.PLAYER_NAME = raw.players_advanced.PLAYER_NAME
+left join raw.players_traditional on raw.players_advanced.GAME_ID::int = raw.players_traditional.GAME_ID::int and raw.players_advanced.PLAYER_NAME = raw.players_traditional.PLAYER_NAME
 left join raw.players_fourfactors on raw.players_traditional.GAME_ID::int = raw.players_fourfactors.GAME_ID::int and raw.players_traditional.PLAYER_NAME = raw.players_fourfactors.PLAYER_NAME
+left join raw.players_scoring on raw.players_fourfactors.GAME_ID::int = raw.players_scoring.GAME_ID::int and raw.players_fourfactors.PLAYER_NAME = raw.players_scoring.PLAYER_NAME
 
