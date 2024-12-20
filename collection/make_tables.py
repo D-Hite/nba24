@@ -255,7 +255,7 @@ class TableGenerator():
         self.conn.execute(team_sql).df()
         self.sql_create_team_combination = team_sql
 
-        with open('creationsql.sql','w') as f1:
+        with open('./out/sql/creationsql.sql','w') as f1:
             f1.write(f"TEAMS:\n{self.sql_create_team_combination}\n\n")
             f1.write(f"PLAYERS:\n{self.sql_create_player_combination}\n\n")
         print("create_team_and_player_tables: DONE")
