@@ -29,7 +29,7 @@ conn = duckdb.connect(filepath)
 
 # %%
 conn.execute("""
-CREATE OR REPLACE TABLE TEAM_AVG_NODE_10_TABLE AS
+CREATE OR REPLACE TABLE processed.TEAM_AVG_NODE_10_TABLE AS
 
 WITH HA_MATCHUPS AS (
     SELECT
@@ -180,7 +180,7 @@ sample.to_csv('../modeling/datasets/team_sample.csv', index=False)
 # %%
 player_sample = conn.execute(f"""
 -- Load the CSV file first as a temporary table
-CREATE OR REPLACE TEMPORARY TABLE team_sample AS
+CREATE OR REPLACE TEMPORARY processed.TABLE team_sample AS
 SELECT * FROM read_csv_auto('../modeling/datasets/team_sample.csv');
 
 -- Query to fetch data from PLAYER_10_AVG_TABLE where GAME_ID matches from the CSV
