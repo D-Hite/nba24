@@ -1,6 +1,0 @@
-duckdb
-pandas
-seaborn
-matplotlib
-nba_api
-pysimplegui

@@ -1,0 +1,1 @@
+This directory will have a new venv since pytorch geometric only works with maximun python version = 3.7.9

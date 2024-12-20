@@ -18,7 +18,8 @@ print(filepath)
 conn = duckdb.connect(filepath)
 
 # %%
-conn.execute('SHOW TABLES').df()
+conn.execute("""SELECT table_schema, table_name
+FROM information_schema.tables""").df()
 
 # %%
 """
@@ -49,7 +50,7 @@ columns_wanted = ['EFG_PCT',
 # %%
 
 def create_base_team_dataset(cols, roll_number):
-    start = f"""CREATE OR REPLACE TABLE TEMP_TEAM_{roll_number}_AVG_DATA AS
+    start = f"""CREATE OR REPLACE TABLE processed.TEMP_TEAM_{roll_number}_AVG_DATA AS
         SELECT
         TEAM_ABBREVIATION
         ,SEASON_ID
@@ -73,7 +74,7 @@ def create_base_team_dataset(cols, roll_number):
     ) AS game_count
     
 
-FROM TEAMS_COMBINED
+FROM combined.TEAMS_COMBINED
 --WHERE SEASON_ID::varchar not like '4%'
 ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
     return start
@@ -87,19 +88,19 @@ ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE"""
 conn.execute(create_base_team_dataset(columns_wanted, rolling_avg_number)).df()
 
 
-with open('team_creation.sql' ,'w') as f:
+with open('creation_team.sql' ,'w') as f:
      f.write(create_base_team_dataset(columns_wanted, rolling_avg_number))
 
 # %%
-first_sample = conn.execute("select * from TEMP_TEAM_10_AVG_DATA order by RANDOM() limit 1000").df()
-first_sample.to_csv('temp/first_sample.csv')
+# first_sample = conn.execute("select * from processed.TEMP_TEAM_10_AVG_DATA order by RANDOM() limit 1000").df()
+# first_sample.to_csv('temp/sample_team_first.csv')
 
 
 
 # %%
 def create_step_2_dataset(cols,roll_number):
     start = f"""
-    CREATE OR REPLACE TABLE TEAM_AVG_{roll_number}_TABLE AS
+    CREATE OR REPLACE TABLE processed.TEAM_AVG_{roll_number}_TABLE AS
     
     WITH HA_MATCHUPS AS (
         SELECT
@@ -116,7 +117,7 @@ def create_step_2_dataset(cols,roll_number):
                 WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 8, 4)
                 ELSE SUBSTRING(MATCHUP, 0, 4)
             END AS AWAY_TEAM
-        FROM TEMP_TEAM_{roll_number}_AVG_DATA
+        FROM processed.TEMP_TEAM_{roll_number}_AVG_DATA
     )
 
     SELECT 
@@ -143,16 +144,16 @@ def create_step_2_dataset(cols,roll_number):
     start+=f"""\nFROM HA_MATCHUPS current_game
 
     -- Join to get home team data for the next game
-    JOIN TEMP_TEAM_{roll_number}_AVG_DATA home_team_data
+    JOIN processed.TEMP_TEAM_{roll_number}_AVG_DATA home_team_data
         ON home_team_data.TEAM_ABBREVIATION = current_game.HOME_TEAM
         AND current_game.GAME_ID = home_team_data.GAME_ID
 
     -- Join to get away team data for the next game
-    JOIN TEMP_TEAM_{roll_number}_AVG_DATA away_team_data
+    JOIN processed.TEMP_TEAM_{roll_number}_AVG_DATA away_team_data
         ON away_team_data.TEAM_ABBREVIATION = current_game.AWAY_TEAM
         AND current_game.GAME_ID = away_team_data.GAME_ID
     
-    JOIN LINES_TABLE lt
+    JOIN raw.LINES_TABLE lt
         on current_game.HOME_TEAM = lt.TEAM_ABBREVIATION
         and current_game.GAME_ID::int = lt.GAME_ID::int
 
@@ -168,20 +169,26 @@ def create_step_2_dataset(cols,roll_number):
 # %%
 conn.execute(create_step_2_dataset(columns_wanted,rolling_avg_number)).df()
 
-with open('team_creation.sql' ,'a') as f:
+with open('creation_team.sql' ,'a') as f:
      f.write("\n\n"+create_step_2_dataset(columns_wanted,rolling_avg_number))
 
 # %%
 
 # %%
 sample = conn.execute(f"""
-SELECT * FROM TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
+SELECT * FROM processed.TEAM_AVG_10_TABLE ORDER BY RANDOM() limit 1000
              """).df()
 
-sample.to_csv('temp/second_sample.csv')
+sample.to_csv('temp/team_average_sample.csv')
 
 
+# %%
+# sample = conn.execute(f"""
+# SELECT * FROM processed.TEAM_AVG_10_TABLE 
+# WHERE HOME_GAME_COUNT > 15 ORDER BY RANDOM() limit 10000
+#              """).df()
 
+# sample.to_csv('../modeling/datasets/team_sample.csv')
 
 # %%
 conn.close()
@@ -190,281 +197,3 @@ conn.close()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# %%
-conn.execute(f"""
-with HA_MATCHUPS as (
-SELECT
-             GAME_ID,
-             GAME_DATE,
-             TEAM_ABBREVIATION,
-             MATCHUP,
-        CASE 
-            WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 0, 4)
-            ELSE SUBSTRING(MATCHUP, 7)
-        END AS HOME_TEAM,
-        
-        CASE 
-            WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 8, 4)
-            ELSE SUBSTRING(MATCHUP, 0, 4)
-        END AS AWAY_TEAM
-from TEMP_TEAM_10_AVG_DATA
-)
-             select *
-             from HA_MATCHUPS
-             limit 10
-
-
-             """).df()
-
-
-
-# %%
-conn.execute(f"""WITH HA_MATCHUPS AS (
-    SELECT
-        GAME_ID,
-        GAME_DATE,
-        TEAM_ABBREVIATION,
-        MATCHUP,
-        CASE 
-            WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 0, 4)
-            ELSE SUBSTRING(MATCHUP, 7)
-        END AS HOME_TEAM,
-        
-        CASE 
-            WHEN MATCHUP like '%vs.%' THEN SUBSTRING(MATCHUP, 8, 4)
-            ELSE SUBSTRING(MATCHUP, 0, 4)
-        END AS AWAY_TEAM
-    FROM TEMP_TEAM_10_AVG_DATA
-)
-
-SELECT 
-    current_game.GAME_ID,
-    current_game.GAME_DATE,
-    current_game.MATCHUP,
-    
-    -- Home team data for the next game
-    home_team_data.EFG_PCT AS HOME_EFG_PCT,
-    home_team_data.FTA_RATE AS HOME_FTA_RATE,
-    home_team_data.TM_TOV_PCT AS HOME_TM_TOV_PCT,
-    home_team_data.OREB_PCT AS HOME_OREB_PCT,
-    home_team_data.OPP_EFG_PCT AS HOME_OPP_EFG_PCT,
-    home_team_data.OPP_FTA_RATE AS HOME_OPP_FTA_RATE,
-    home_team_data.OPP_TOV_PCT AS HOME_OPP_TOV_PCT,
-    home_team_data.OPP_OREB_PCT AS HOME_OPP_OREB_PCT,
-    
-    -- Away team data for the next game
-    away_team_data.EFG_PCT AS AWAY_EFG_PCT,
-    away_team_data.FTA_RATE AS AWAY_FTA_RATE,
-    away_team_data.TM_TOV_PCT AS AWAY_TM_TOV_PCT,
-    away_team_data.OREB_PCT AS AWAY_OREB_PCT,
-    away_team_data.OPP_EFG_PCT AS AWAY_OPP_EFG_PCT,
-    away_team_data.OPP_FTA_RATE AS AWAY_OPP_FTA_RATE,
-    away_team_data.OPP_TOV_PCT AS AWAY_OPP_TOV_PCT,
-    away_team_data.OPP_OREB_PCT AS AWAY_OPP_OREB_PCT
-
-FROM 
-    HA_MATCHUPS current_game
-
--- Join to get home team data for the next game
-JOIN TEMP_TEAM_10_AVG_DATA home_team_data
-    ON home_team_data.TEAM_ABBREVIATION = current_game.HOME_TEAM
-    AND current_game.GAME_ID = home_team_data.NEXT_GAME_ID
-
--- Join to get away team data for the next game
-JOIN TEMP_TEAM_10_AVG_DATA away_team_data
-    ON away_team_data.TEAM_ABBREVIATION = current_game.AWAY_TEAM
-    AND current_game.GAME_ID = away_team_data.NEXT_GAME_ID
-
-ORDER BY 
-    current_game.GAME_DATE
-             
-             
-             limit 100;
-""").df()
-
-
-
-# %%
-# test 300
-
-
-conn.execute("""
-select *
-             from TEMP_TEAM_10_AVG_DATA
-             where GAME_ID = 0021000115
-             or NEXT_GAME_ID = 0021000115
-
-
-
-
-""").df()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# %%
-
-
-
-
-
-first_sample = conn.execute(f"""
-SELECT
-    TEAM_ABBREVIATION,
-    SEASON_ID,
-    GAME_ID,
-    GAME_DATE,
-    EFG_PCT,
-    FTA_RATE,
-    TM_TOV_PCT,
-    OREB_PCT,
-    OPP_EFG_PCT,
-    OPP_FTA_RATE,
-    OPP_TOV_PCT,
-    OPP_OREB_PCT,
-    
-    -- Calculate rolling averages (adjust window size as needed, here we use 5 games)
-    AVG(EFG_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_EFG_PCT,
-    
-    AVG(FTA_RATE) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_FTA_RATE,
-    
-    AVG(TM_TOV_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_TM_TOV_PCT,
-    
-    AVG(OREB_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_OREB_PCT,
-    
-    AVG(OPP_EFG_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_OPP_EFG_PCT,
-    
-    AVG(OPP_FTA_RATE) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_OPP_FTA_RATE,
-    
-    AVG(OPP_TOV_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_OPP_TOV_PCT,
-    
-    AVG(OPP_OREB_PCT) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID 
-        ORDER BY GAME_DATE
-        ROWS BETWEEN {rolling_avg_number} PRECEDING AND CURRENT ROW
-    ) AS rolling_avg_OPP_OREB_PCT,
-    
-    -- Calculate the total number of games played in the season up to the current game
-    COUNT(*) OVER (
-        PARTITION BY TEAM_ABBREVIATION, SEASON_ID
-        ORDER BY GAME_DATE
-        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-    ) AS game_count
-
-FROM TEAMS_COMBINED
-WHERE SEASON_ID::varchar not like '4%'
-ORDER BY SEASON_ID, TEAM_ABBREVIATION, GAME_DATE         
-             
-             ;
-"""
-).df()
-
-
-
-
-# %%
-
-first_sample.to_csv('out/first_sample.csv')
-
-
-
-
-# %%
-conn.close()
-# %%
