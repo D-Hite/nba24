@@ -19,7 +19,8 @@ print(filepath)
 conn = duckdb.connect(filepath)
 
 # %%
-conn.execute('SHOW TABLES').df()
+conn.execute("""SELECT table_schema, table_name
+FROM information_schema.tables""").df()
 
 
 
@@ -33,14 +34,15 @@ columns_wanted = ['EFG_PCT',
     'OPP_EFG_PCT',
     'OPP_FTA_RATE',
     'OPP_TOV_PCT',
-    'OPP_OREB_PCT']
+    'OPP_OREB_PCT',
+    'USG_PCT']
 
 
 
 # %%
 
 def create_player_dataset(cols, roll_number):
-    start = f"""CREATE OR REPLACE TABLE PLAYER_{roll_number}_AVG_TABLE AS
+    start = f"""CREATE OR REPLACE TABLE processed.PLAYER_{roll_number}_AVG_TABLE AS
     with INTERMEDIATE_DATA as (
         SELECT
         TEAM_ABBREVIATION
@@ -72,7 +74,7 @@ def create_player_dataset(cols, roll_number):
     ) AS GAME_COUNT
     
 
-    FROM PLAYERS_COMBINED
+    FROM combined.PLAYERS_COMBINED
     )
 
     SELECT 
@@ -101,32 +103,37 @@ print(create_player_dataset(columns_wanted, rolling_avg_number))
 conn.execute(create_player_dataset(columns_wanted, rolling_avg_number)).df()
 
 
-with open('player_creation.sql' ,'w') as f:
+with open('creation_player.sql' ,'w') as f:
      f.write(create_player_dataset(columns_wanted, rolling_avg_number))
 
 # %%
-first_sample = conn.execute("select * from PLAYER_10_AVG_TABLE order by RANDOM() limit 1000").df()
-first_sample.to_csv('temp/player_sample.csv')
+first_sample = conn.execute("select * from processed.PLAYER_10_AVG_TABLE order by RANDOM() limit 1000").df()
+first_sample.to_csv('temp/player_l10_avg_sample.csv')
 
 # %%
-second_sample = conn.execute("select * from PLAYER_10_AVG_TABLE WHERE PLAYER_NAME = 'AJ Price'").df()
-second_sample.to_csv('temp/second_player_sample.csv')
+# second_sample = conn.execute("select * from processed.PLAYER_10_AVG_TABLE WHERE PLAYER_NAME = 'AJ Price'").df()
+# second_sample.to_csv('temp/second_player_sample.csv')
+
+# # %%
+# out_sample = conn.execute("select * from PLAYER_10_AVG_TABLE").df()
+# out_sample.to_csv('../modeling/datasets/player_sample.csv')
 
 # %%
 conn.execute("""select 
              *
-             from PLAYER_10_AVG_TABLE 
+             from processed.PLAYER_10_AVG_TABLE 
              where minutes > 20
              and game_count > 10
+             and usg_pct > .20
              and SEASON_ID::varchar not like '4%'
              order by EFG_PCT desc
-             limit 10
+             limit 20
              
              """).df()
 
 
 
-# TODO: per minute data
+# per minute data
 # %%
 rolling_avg_number = 10
 per_minute_columns_wanted = ['PTS',
@@ -146,7 +153,7 @@ not_per_minute_columns_wanted = ['PACE',
 # %%
 
 def create_player_per_minute_dataset(pmcols, cols, roll_number):
-    start = f"""CREATE OR REPLACE TABLE PLAYER_{roll_number}_PER_MIN_AVG_DATA AS
+    start = f"""CREATE OR REPLACE TABLE processed.PLAYER_{roll_number}_PER_MIN_AVG_DATA AS
     with INTERMEDIATE_DATA as (
         SELECT
         TEAM_ABBREVIATION
@@ -184,7 +191,7 @@ def create_player_per_minute_dataset(pmcols, cols, roll_number):
     ) AS GAME_COUNT
     
 
-    FROM PLAYERS_COMBINED
+    FROM combined.PLAYERS_COMBINED
     )
 
     SELECT 
@@ -215,11 +222,11 @@ print(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_
 conn.execute(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number)).df()
 
 
-with open('player_creation.sql' ,'a') as f:
-     f.write(create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number))
+with open('creation_player.sql' ,'a') as f:
+     f.write('\n\n'+create_player_per_minute_dataset(per_minute_columns_wanted,not_per_minute_columns_wanted, rolling_avg_number))
 
 # %%
-first_sample = conn.execute("select * from PLAYER_10_PER_MIN_AVG_DATA order by RANDOM() limit 1000").df()
+first_sample = conn.execute("select * from processed.PLAYER_10_PER_MIN_AVG_DATA order by RANDOM() limit 1000").df()
 first_sample.to_csv('temp/playerpermin_sample.csv')
 
 
@@ -228,13 +235,13 @@ first_sample.to_csv('temp/playerpermin_sample.csv')
 # x = 
 conn.execute("""select 
              *
-             from PLAYER_10_PER_MIN_AVG_DATA 
+             from processed.PLAYER_10_PER_MIN_AVG_DATA 
              where minutes > 20
              and game_count > 10
              and SEASON_ID::varchar not like '4%'
              and not isnan(AVG_PTS_PM)
              order by AVG_PTS_PM desc
-             limit 10
+             limit 20
              
              """).df()
 
