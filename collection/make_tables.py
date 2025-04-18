@@ -272,6 +272,20 @@ tg.create_team_and_player_tables()
 
 
 # %%
+### SAMPLE
+tg.conn.execute('SHOW ALL TABLES').df()
+
+
+# %%
+sample = tg.conn.execute('SELECT * FROM combined.teams_combined limit 1000').df()
+sample.to_csv('out/temp/teamsample.csv')
+sample = tg.conn.execute('SELECT * FROM combined.players_combined limit 1000').df()
+sample.to_csv('out/temp/playersample.csv')
+
+
+
+
+# %%
 tg.conn.close()
 
 
